@@ -1,0 +1,30 @@
+image: docker:19.03.8
+  
+stages:  
+  - deploy
+  
+services:
+    - docker:19.03.8-dind
+   
+git-rebase-ts:
+  tags:
+    - cbn
+    - cicd
+    - server 
+  stage: deploy
+  allow_failure: true
+  before_script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval `ssh-agent -s`
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' >> ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo "$SSH_PUBLIC_KEY" | tr -d '\r' >> ~/.ssh/id_rsa.pub
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -H $GCP_IP_NON_DOCKER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - ssh $GCP_USERNAME@$GCP_IP_NON_DOCKER "cd $GCP_WORKDIR && git branch && sudo git checkout master_cbn && sudo git pull origin master_cbn"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master_cbn"'
